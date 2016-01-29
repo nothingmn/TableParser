@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 using System.Threading.Tasks;
 
 namespace TableParser
@@ -18,7 +19,7 @@ namespace TableParser
         {
         }
 
-        public TableRenderer(string[] columnHeaders, Func<T, object>[] valueSelectors, IEnumerable<T> initialContent = null, int x = 0, int y = 0, int frequency = 1000)
+        public TableRenderer(string[] columnHeaders = null, Func<T, object>[] valueSelectors = null, IEnumerable<T> initialContent = null, int x = 0, int y = 0, int frequency = 1000)
         {
             _x = x;
             _y = y;
@@ -26,10 +27,27 @@ namespace TableParser
             Content = initialContent;
             ColumnHeaders = columnHeaders;
             ValueSelectors = valueSelectors;
+
+            if (ColumnHeaders == null) ColumnHeaders = DefaultColumnHeaders;
+            if (ValueSelectors == null) ValueSelectors = CreateAccessorsCompiled().ToArray();
             Render();
             if (frequency > 0)
             {
                 Refresh();
+            }
+        }
+
+        private string[] DefaultColumnHeaders
+        {
+            get
+            {
+                var x = typeof (T);
+                var lst = new List<string>();
+                foreach (var p in x.GetProperties())
+                {
+                    if (p.CanRead) lst.Add(p.Name);
+                }
+                return lst.ToArray();
             }
         }
 
@@ -46,6 +64,34 @@ namespace TableParser
         public string[] ColumnHeaders { get; set; }
         public Func<T, object>[] ValueSelectors { get; set; }
         public Expression<Func<T, object>>[] ValueSelectorsExpressions { get; set; }
+
+        private List<Func<T, object>> CreateAccessorsCompiled()
+        {
+            var accessors = new List<Func<T, object>>();
+            var t = typeof (T);
+            foreach (var prop in t.GetProperties(BindingFlags.Instance | BindingFlags.Public))
+            {
+                if (prop.CanRead)
+                {
+                    var lambdaParam = Expression.Parameter(t, "instance");
+                    Expression bodyExpression;
+                    var memberAccessExpression = Expression.MakeMemberAccess(Expression.Convert(lambdaParam, t), prop);
+                    if (prop.PropertyType == typeof (object))
+                    {
+                        // Create lambda expression:  (instance) => ((T)instance).Member
+                        bodyExpression = memberAccessExpression;
+                    }
+                    else
+                    {
+                        // Create lambda expression:  (instance) => (object)((T)instance).Member
+                        bodyExpression = Expression.Convert(memberAccessExpression, typeof (object));
+                    }
+                    var lambda = Expression.Lambda<Func<T, object>>(bodyExpression, lambdaParam);
+                    accessors.Add(lambda.Compile());
+                }
+            }
+            return accessors;
+        }
 
         private void Render()
         {

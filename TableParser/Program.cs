@@ -8,7 +8,8 @@ namespace TableParser
     {
         public static void Main()
         {
-            var renderer = new TableRenderer<User>(new[] { "User Id", "Name", "Birthdate", "Location" }, user => user.Id, user => user.Name, user => user.DateOfBirth, user => string.Format("{0:00.00} : {1:00.00}", user.Location.Lat, user.Location.Lon));
+            //var renderer = new TableRenderer<User>(new[] { "User Id", "Name", "Birthdate", "Location" }, user => user.Id, user => user.Name, user => user.DateOfBirth, user => string.Format("{0:00.00} : {1:00.00}", user.Location.Lat, user.Location.Lon));
+            var renderer = new TableRenderer<User>();
 
             var rnd = new Random();
 
