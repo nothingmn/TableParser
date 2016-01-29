@@ -6,7 +6,7 @@
     using System.Linq;
     using System.Linq.Expressions;
     using System.Reflection;
-    using System.Text; 
+    using System.Text;
 
     public static class TableParserExtensions
     {
